@@ -3,7 +3,8 @@
 为开发"魔法架子"而做的游戏逆向调查记录。**游戏反编译产物不收录进本仓库**（体积大且属于游戏资产），
 这里只记录结论：要打哪个方法、用什么入口、有哪些坑。
 
-游戏版本：**2.0.2**（buildid 18969694，Unity 2023.1.13f1，程序集按 **netstandard2.1** 编译）。
+游戏版本：**2.0.2**（游戏主菜单左下角显示 `ST2.0.2.0`；Steam buildid 18969694；Unity 2023.1.13f1；
+程序集按 **netstandard2.1** 编译——插件项目也用这个目标框架，用 netstandard2.0 会报 `CS1705`）。
 
 ## 一、工具链
 
@@ -85,7 +86,43 @@ if (!Managers.BuildMode.IsBuildModeEnabled)
 | `LegendaryRecipesShelfController` | 点传奇配方架 → 开关配方窗口 |
 | `GrowingSpotController` | 点种植点；它还实现了 `IBuildableItemFromInventorySerializedDataController`（自定义存档数据的范例） |
 
-## 五、"同一种药水"的判定
+## 五、把一瓶药放到货架上（吸附条件，踩过坑）
+
+生成一瓶药很简单（`PotionItem.SpawnNewPotion`），但**能不能吸附到格子上**由
+`IgnoreCollisionLedgeTopCollider.CanInteractWithCollider()` 决定，共四个条件：
+
+1. `ledge.IsInitialized()` —— 格子必须已初始化；
+2. `ledgeTarget.CanInteractWithLedge()` —— 药水的实现要求 `state == BottleState.Idle`
+   （枚举里 `Idle = 0`，正好是新生成瓶子的默认值）且不在天平上；
+3. 该物品当前不在这个格子上；
+4. **几何条件**：物品包围盒 `min.y > 格子物理碰撞体顶边 - 容差`，且横向与格子有重叠。
+
+第 4 条最容易踩——**格子的物理碰撞体是带 offset 的**：
+
+```csharp
+// LedgeController 里的真实定义
+Bounds GetLedgePhysicsColliderBounds()
+    => new Bounds(physicsCollider.transform.position + physicsCollider.offset, physicsCollider.size);
+```
+
+直接拿 `ledge.transform.position` 当生成点是**错的**：瓶子会生成在货架下方，永远吸不上来
+（本仓库的 MagicShelf 阶段 1 第一次实测就是这么失败的）。
+
+**稳妥做法**：
+
+```csharp
+var b = ledge.GetLedgePhysicsColliderBounds();
+var pos = new Vector2(b.center.x + Random.Range(-b.extents.x * 0.6f, b.extents.x * 0.6f), b.max.y + 0.35f);
+var item = PotionItem.SpawnNewPotion(pos, potion, Managers.Player.InventoryPanel);
+item.OnReleasePrimary(false);     // 对"从未被抓取过"的物品只是收尾：设重力/约束/图层
+ledge.AttachItem(item);           // 游戏自己的挂载方法：强制吸附，不赌物理触发器
+```
+
+补充：`OnReleasePrimary(false)` 对没被抓过的物品**不会**把瓶子传送回背包——它的内部逻辑里
+"放回背包"那条分支要求 `Managers.Cursor.grabbedInteractiveItem == this`，未抓取时为 false，
+最终只走 `ReleaseToPlayZone()`（设重力、角速度、图层）。
+
+## 六、"同一种药水"的判定
 
 游戏自己就有严格判定，**不需要自己发明规则**：
 
@@ -111,7 +148,7 @@ public virtual InventoryItem FindSame<T1, T2>(T1 dictionary);
 
 **没有**参与比较的：`recipeData.recipeMarks`（配方标记）与炼制路径。
 
-## 六、可见性坑（写插件时会撞上）
+## 七、可见性坑（写插件时会撞上）
 
 | 成员 | 可见性 | 绕法 |
 | --- | --- | --- |
@@ -119,7 +156,7 @@ public virtual InventoryItem FindSame<T1, T2>(T1 dictionary);
 | `LedgeController.physicalItemsOnLedge` | `private` | 改为遍历 `Managers.Game.ItemContainer` 下的 `PotionItem`，用 `IsItemOnLedge()` + `LedgeAttachedTo` 反查 |
 | `PotionItem.state` | `public` 字段（`BottleState`） | 可直接读，`Idle` 才是可交互状态 |
 
-## 七、存档相关（阶段 2 做"独立物品"时要用）
+## 八、存档相关（阶段 2 做"独立物品"时要用）
 
 | 类型 | 作用 |
 | --- | --- |
@@ -131,7 +168,7 @@ public virtual InventoryItem FindSame<T1, T2>(T1 dictionary);
 另：Crucible 框架（`RoboPhred/potioncraft-crucible`）提供"给 NPC 商人加商品"与"共享存档数据"的 API，
 但**不提供自定义可摆放物品**——这正是阶段 2 的难点所在。
 
-## 八、踩过的版本坑（2.0.2）
+## 九、踩过的版本坑（2.0.2）
 
 - `Bookmark.MovingState`（嵌套类型）→ 已改名为顶层 `BookmarkMovingState`；
   引用旧名的 mod 启动即抛 `TypeLoadException`（案例：Brew From Here）。

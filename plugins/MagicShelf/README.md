@@ -52,6 +52,41 @@ dotnet build -c Release
 | 放到架子上 | `PotionItem.OnReleasePrimary(false)`，交给游戏自己的物理/货架吸附逻辑（与存档载入同一条路径） |
 | 扣背包 | `Managers.Player.Inventory.RemoveItem(potion, 1)`（会顺带刷新背包 UI） |
 
+## 自检（开发/验证用）
+
+配置里有个默认关闭的开关：
+
+```ini
+[4. 自检（开发用）]
+SelfTestOnLoad = true
+```
+
+打开后，**载入存档时**插件会自动做一次端到端自检：
+
+1. 找一张真实货架；若架上没有药水，先从背包放一瓶作为参照（取数量 ≥ 2 的那种，留一瓶给自检搬）；
+2. 调用 `BuildableItemFromInventory.OnPrimaryCursorClick()`——**这正是玩家点击时游戏自己调用的入口**，
+   所以走的是与实战完全相同的代码路径（Harmony 前缀 → 搬运逻辑）；
+3. 轮询到搬运结束，核对「背包数量变化 + 架上瓶子数量变化」，在日志里输出 `✅ PASS` 或 `❌ FAIL` 及明细。
+
+日志示例：
+
+```
+[自检] 货架「Shelf(Clone)」参照药水【Healing Potion】：背包 12 瓶、架上 1 瓶
+[自检] 调用 OnPrimaryCursorClick()（等价于玩家点击该货架）……
+[自检] 结果：背包 12 → 0 瓶，架上 1 → 13 瓶，耗时 3.4 秒
+[自检] ✅ PASS —— 点击货架成功搬运 12 瓶同种药水到货架上
+```
+
+验证完请把 `SelfTestOnLoad` 改回 `false`。自检会真实移动药水，**不要在不想改动的存档上开**。
+
+插件启动时还会打印 Harmony 补丁状态：
+
+```
+[Info:Magic Shelf] Harmony 补丁已挂上：BuildableItemFromInventory.OnPrimaryCursorClick
+```
+
+补丁没挂上时会打 `LogError`——因为功能静默失效是最难排查的情况。
+
 ## 已知限制与注意事项
 
 - **阶段 1 是原型**：挂在游戏**现有货架**上，还没有独立的"魔法架子"物品、没有商人出售、没有颜色区分。

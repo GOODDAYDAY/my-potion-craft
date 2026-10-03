@@ -54,6 +54,11 @@
       <HintPath>$(ManagedDir)\PotionCraft.ManagerSystem.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- LedgeController / ILedgeTarget 的成员牵涉到 GamepadNavigation 里的 ISlotProvider 等类型 -->
+    <Reference Include="PotionCraft.GamepadNavigation">
+      <HintPath>$(ManagedDir)\PotionCraft.GamepadNavigation.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
       <Private>false</Private>

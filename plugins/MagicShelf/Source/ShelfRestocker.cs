@@ -27,6 +27,7 @@ namespace MagicShelf
         private sealed class Job
         {
             public PotionItem Reference;
+            public LedgeController Ledge;
             public PotionDef Potion;
             public int Count;
         }
@@ -146,7 +147,7 @@ namespace MagicShelf
                     continue;
                 }
 
-                jobs.Add(new Job { Reference = item, Potion = key, Count = count });
+                jobs.Add(new Job { Reference = item, Ledge = ledge, Potion = key, Count = count });
                 if (MagicShelfPlugin.VerboseLog.Value)
                 {
                     MagicShelfPlugin.Log.LogInfo($"货架上的【{reference.name}】→ 背包里有 {count} 瓶待搬运");
@@ -190,7 +191,7 @@ namespace MagicShelf
         /// 在背包里找与参照瓶“同种”的那一条记录。
         /// 用游戏自己的 IsSame（比名字、自定义标题/描述、效果数组、图标颜色、瓶子、贴纸、基底、实际用料）。
         /// </summary>
-        private static PotionDef FindInventoryKey(Inventory inventory, PotionDef reference)
+        internal static PotionDef FindInventoryKey(Inventory inventory, PotionDef reference)
         {
             foreach (var pair in inventory.items)
             {
@@ -216,7 +217,7 @@ namespace MagicShelf
         /// 游戏里的 <c>ItemFromInventory.InventoryItem</c> 是 internal，插件无法直接访问，
         /// 因此用 Harmony 的 AccessTools 反射读取（这是 BepInEx 插件的标准做法）。
         /// </summary>
-        private static PotionDef GetPotionOf(PotionItem item)
+        internal static PotionDef GetPotionOf(PotionItem item)
         {
             if (inventoryItemProperty == null)
             {
@@ -240,6 +241,20 @@ namespace MagicShelf
             }
         }
 
+        /// <summary>
+        /// 算生成点：必须落在格子碰撞体**顶边之上**、且横向与格子有重叠——
+        /// 这是游戏自己的吸附判定条件（见 IgnoreCollisionLedgeTopCollider.CanInteractWithCollider）。
+        /// 注意格子碰撞体带 offset，不能直接用 ledge.transform.position。
+        /// </summary>
+        internal static Vector2 SpawnPositionFor(LedgeController ledge, float heightAbove = 0.35f)
+        {
+            Bounds bounds = ledge.GetLedgePhysicsColliderBounds();
+            float halfWidth = Mathf.Max(bounds.extents.x * 0.6f, 0.05f);
+            return new Vector2(
+                bounds.center.x + UnityEngine.Random.Range(-halfWidth, halfWidth),
+                bounds.max.y + heightAbove);
+        }
+
         private static IEnumerator Restock(List<Job> jobs)
         {
             var inventory = Managers.Player.Inventory;
@@ -251,11 +266,8 @@ namespace MagicShelf
 
             foreach (var job in jobs)
             {
-                Vector2 basePosition = job.Reference != null
-                    ? (Vector2)job.Reference.transform.position
-                    : Vector2.zero;
-
                 int remaining = job.Count;
+                int attachFailed = 0;
                 while (remaining > 0)
                 {
                     if (maxPerClick > 0 && moved >= maxPerClick)
@@ -269,7 +281,7 @@ namespace MagicShelf
                         break;   // 背包里已经没有了（可能被别的操作拿走）
                     }
 
-                    Vector2 spawnPosition = basePosition + new Vector2(UnityEngine.Random.Range(-0.12f, 0.12f), 0.35f);
+                    Vector2 spawnPosition = SpawnPositionFor(job.Ledge);
 
                     PotionItem spawned;
                     try
@@ -288,11 +300,25 @@ namespace MagicShelf
                     {
                         try
                         {
-                            spawned.OnReleasePrimary(false);   // 交给游戏自己的物理/吸附逻辑
+                            // 收尾：对没被抓过的物品来说只是设置重力/约束/图层（不会把瓶子传送走）
+                            spawned.OnReleasePrimary(false);
                         }
                         catch (Exception e)
                         {
                             MagicShelfPlugin.Log.LogError("放下药水时出错：" + e);
+                        }
+
+                        try
+                        {
+                            // 直接调用游戏自己的挂载方法，不依赖物理触发器是否恰好命中
+                            if (!job.Ledge.AttachItem(spawned))
+                            {
+                                attachFailed++;
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            MagicShelfPlugin.Log.LogError("挂到货架格子上出错：" + e);
                         }
                     }
 
@@ -307,6 +333,12 @@ namespace MagicShelf
                     {
                         yield return null;
                     }
+                }
+
+                if (attachFailed > 0)
+                {
+                    MagicShelfPlugin.Log.LogWarning($"有 {attachFailed} 瓶没能挂到格子上（会掉在地上），" +
+                                                    "请把这条日志反馈给开发者");
                 }
 
                 if (capped)

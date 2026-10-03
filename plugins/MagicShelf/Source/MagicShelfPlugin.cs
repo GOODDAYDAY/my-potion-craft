@@ -30,6 +30,7 @@ namespace MagicShelf
         internal static ConfigEntry<int> MaxPerClick;
         internal static ConfigEntry<float> SpawnInterval;
         internal static ConfigEntry<bool> VerboseLog;
+        internal static ConfigEntry<bool> SelfTestOnLoad;
 
         private Harmony harmony;
 
@@ -58,6 +59,11 @@ namespace MagicShelf
                 "3. 调试", "VerboseLog", true,
                 "把每次搬运的明细写进 BepInEx 日志");
 
+            SelfTestOnLoad = Config.Bind(
+                "4. 自检（开发用）", "SelfTestOnLoad", false,
+                "打开后：载入存档时自动找一张真实货架，调用与玩家点击完全相同的入口跑一次搬运，"
+                + "并把「背包数量变化 + 架上瓶子数量变化」写成 PASS/FAIL 报告。验证完请改回 false");
+
             var host = new GameObject("MagicShelf.CoroutineHost");
             Object.DontDestroyOnLoad(host);
             CoroutineHost = host.AddComponent<CoroutineRunner>();
@@ -65,7 +71,41 @@ namespace MagicShelf
             harmony = new Harmony(Guid);
             harmony.PatchAll(typeof(ShelfClickPatch));
 
+            LogPatchStatus();
+
             Log.LogInfo("Magic Shelf 原型已加载：非建造模式点击货架 = 把背包里同种药水全部放上去");
+
+            if (SelfTestOnLoad.Value)
+            {
+                CoroutineHost.StartCoroutine(SelfTest.Run());
+            }
+        }
+
+        /// <summary>
+        /// 明确报告 Harmony 补丁有没有挂上——补丁没挂上时功能会静默失效，这种"看起来装了其实没用"最难排查。
+        /// </summary>
+        private void LogPatchStatus()
+        {
+            bool bound = false;
+            foreach (var method in harmony.GetPatchedMethods())
+            {
+                if (method.DeclaringType == typeof(PotionCraft.ObjectBased.BuildableItemFromInventory)
+                    && method.Name == "OnPrimaryCursorClick")
+                {
+                    bound = true;
+                    break;
+                }
+            }
+
+            if (bound)
+            {
+                Log.LogInfo("Harmony 补丁已挂上：BuildableItemFromInventory.OnPrimaryCursorClick");
+            }
+            else
+            {
+                Log.LogError("Harmony 补丁**没有**挂上 OnPrimaryCursorClick —— 点击功能不会生效，"
+                             + "很可能是游戏更新改了方法名或签名");
+            }
         }
 
         private void OnDestroy()
