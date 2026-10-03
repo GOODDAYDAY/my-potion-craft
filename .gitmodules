@@ -1,0 +1,12 @@
+[submodule "upstream/PotionCraft_AutoHaggle"]
+	path = upstream/PotionCraft_AutoHaggle
+	url = https://github.com/xiaoye97/PotionCraft_AutoHaggle.git
+[submodule "upstream/PotionCraft_SortBookmark"]
+	path = upstream/PotionCraft_SortBookmark
+	url = https://github.com/xiaoye97/PotionCraft_SortBookmark.git
+[submodule "upstream/PotionCraft_MoreInformation"]
+	path = upstream/PotionCraft_MoreInformation
+	url = https://github.com/xiaoye97/PotionCraft_MoreInformation.git
+[submodule "upstream/PotionCraftAutoGarden"]
+	path = upstream/PotionCraftAutoGarden
+	url = https://github.com/ukersn/PotionCraftAutoGarden.git

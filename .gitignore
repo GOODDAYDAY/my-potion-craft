@@ -1,0 +1,24 @@
+# 本机私有笔记（可能含本机绝对路径等不适合公开的内容）
+local.md
+local/
+*.local.md
+
+# Windows
+Thumbs.db
+desktop.ini
+Desktop.ini
+
+# 编辑器 / IDE
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+
+# 构建产物（将来自研插件时用得上）
+bin/
+obj/
+*.dll
+*.pdb
+
+# 例外：scripts 下不放二进制，无需例外项
