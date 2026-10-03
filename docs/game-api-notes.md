@@ -161,12 +161,58 @@ public virtual InventoryItem FindSame<T1, T2>(T1 dictionary);
 | 类型 | 作用 |
 | --- | --- |
 | `BuildZoneObject.objectId` + `BuildZoneObjectIdGenerator.GetGeneratedId()` + `GetById()` | 摆放物的身份与注册 |
-| `IBuildableItemFromInventorySerializedDataController` | **给单个摆放物写自定义存档数据的官方扩展点** |
+| `IBuildableItemFromInventorySerializedDataController` | **给单个摆放物写自定义存档数据的官方扩展点**（范例：`GrowingSpotController`） |
 | `SerializedLedgeTargetData` | 记录物品在哪个格子上、第几个位置（`isItemOnLedge` / `ledgePosition` / `itemIndexOnLedge`） |
 | `PotionItem.SpawnFromSerializedData(...)` | 读档时重建药水瓶的完整流程（生成 → `ApplySerializedLedgeTargetData` → `OnReleasePrimary`） |
 
-另：Crucible 框架（`RoboPhred/potioncraft-crucible`）提供"给 NPC 商人加商品"与"共享存档数据"的 API，
-但**不提供自定义可摆放物品**——这正是阶段 2 的难点所在。
+### 8.1 可摆放物品（阶段 2 的"魔法架子"本体）
+
+| 概念 | 类型 / 方法 |
+| --- | --- |
+| 可摆放物品资产 | `BuildableInventoryItem : InventoryItem`（抽象；具体子类如 `Furniture`、`Seed`） |
+| 注册表 | 静态字典 `allBuildableItems`，按 `BuildableInventoryItemType`（`Furniture` / `Seed`）分组 |
+| 按名字查找 | `BuildableInventoryItem.GetFirst(warning, itemName, types)`，**名字大小写不敏感** |
+| 生成实体 | `BuildableItemFromInventory.SpawnNewItem(inventoryItem, position, rotation, itemsPanel)` |
+| 从背包取出 | `BuildableInventoryItem.TakeFromInventory(...)` → 内部就是 `SpawnNewItem` + `Cursor.GrabItem` |
+
+**关键结论（阶段 2 可行的根据）**：存档里摆放物是按**名字**还原的
+（`InventoryItem.GetByName` → `BuildableInventoryItem.GetFirst(false, name)`）。
+所以只要在**读档之前**把一个运行时创建的家具资产注册进 `allBuildableItems`，
+它就能存得住、读得回来——**不需要修改存档格式**。
+
+### 8.2 让商人出售（"商人卖魔法架子"）
+
+商人的货不是硬编码，而是每次补货时按"配送条目"生成：
+
+```csharp
+// NpcTrading / TradeManager 内的补货逻辑（要点）
+npc.trading.deliveriesCategories.ForEach(category =>
+    category.deliveries.ForEach(delivery => {
+        InventoryItem item = delivery.item.GetItem();
+        float chance = delivery.appearingChance * 难度系数 * (1 + 天赋加成);
+        if (Random.value < chance)
+            items.SafeIncreaseValue(item, Random.Range(min, max + 1));   // items = 商人的 Inventory
+    }));
+```
+
+| 要点 | 说明 |
+| --- | --- |
+| 商人库存类型 | 就是同一个 `Inventory` 类：`Managers.Trade.Inventory`（`items` 同样是"物品→数量"字典） |
+| 存读档 | `Managers.Trade.Inventory.GetSerializedInventory()` / `LoadFromSerializedInventory(...)` |
+| 条目结构 | `Delivery { item, minCount, maxCount, appearingChance, applyDiscounts, applyExtraCharge }` |
+| **游戏自带的"独特商品"机制** | `TradableUpgrade { uniqueUpgrade }`：只出现一次，且用 `CanUpgradeBeApplied()` 判断是否还该出现——这正是"卖一个魔法架子"该复用的模式 |
+| 备选方案 | Crucible 框架宣称支持 "Adding inventory items to NPC traders"，可省掉自己 hook 补货逻辑 |
+
+### 8.3 颜色区分（"魔法架子得有点区分度"）
+
+外观走 `BuildableItemFromInventoryVisualObjectController` / `BuildableItemFromInventoryVisualObject`：
+分层（Background / Foreground）设置精灵 `SetSprite(layer, index, sprite)`；
+克隆预制体后调 `SpriteRenderer.color`（或材质 tint）即可做出颜色差异——**待阶段 2 实测确认**。
+
+### 8.4 上游框架能做到哪一步
+
+Crucible（`RoboPhred/potioncraft-crucible`）提供：给 NPC 商人加商品、共享存档数据、共享精灵图集、
+自定义材料/瓶子/效果/顾客/商人。**不提供自定义可摆放物品**——那部分要自己写（见 8.1）。
 
 ## 九、踩过的版本坑（2.0.2）
 

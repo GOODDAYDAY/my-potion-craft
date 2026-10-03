@@ -11,12 +11,14 @@ namespace MagicShelf
     /// <summary>
     /// 端到端自检（开发/验证用，配置里默认关闭）。
     ///
-    /// 做法：等存档真正载入后，找一张**真实货架**，直接调用
-    /// <c>BuildableItemFromInventory.OnPrimaryCursorClick()</c>——这正是玩家点击时游戏自己会调用的入口，
-    /// 因此走的是与实战完全相同的代码路径（Harmony 前缀 → ShelfRestocker → 生成/扣数/落地）。
+    /// 两种模式：
+    /// * <c>SelfTestRealClick = false</c>（默认）：直接调用 <c>OnPrimaryCursorClick()</c>——
+    ///   这正是玩家点击时游戏自己会调用的入口，走与实战相同的代码路径。
+    /// * <c>SelfTestRealClick = true</c>：先算出货架在屏幕上的坐标并打成
+    ///   <c>[自检] CLICKPOINT x y</c>，然后等外部工具把光标移过去**真的点一下**。
+    ///   这样连"点击派发"这一环也一起验证了（用来验证的货架必须在当前画面内）。
     ///
-    /// 然后核对：背包里同种药水的数量是否降到 0、货架那一格上的药水瓶是否变多，并把结果写进日志。
-    /// 若货架上原本没有药水，会先从背包里放一瓶上去作为参照（取数量 ≥ 2 的那种，留一瓶给自检搬）。
+    /// 若货架上原本没有药水，会先从背包放一瓶作为参照（取数量 ≥ 2 的那种，留一瓶给自检搬）。
     /// </summary>
     internal static class SelfTest
     {
@@ -25,7 +27,8 @@ namespace MagicShelf
         internal static IEnumerator Run()
         {
             var log = MagicShelfPlugin.Log;
-            log.LogInfo("[自检] 启动，等待存档载入……");
+            bool realClick = MagicShelfPlugin.SelfTestRealClick.Value;
+            log.LogInfo($"[自检] 启动（模式：{(realClick ? "真实鼠标点击" : "直接调用点击入口")}），等待存档载入……");
 
             float waited = 0f;
             while (!IsGameplayReady())
@@ -33,7 +36,7 @@ namespace MagicShelf
                 waited += Time.unscaledDeltaTime;
                 if (waited > 180f)
                 {
-                    log.LogWarning("[自检] 等待超时：180 秒内没有检测到已载入的存档/房间，跳过自检。");
+                    log.LogWarning("[自检] 等待超时：180 秒内没有检测到已载入的房间与货架，跳过自检。");
                     yield break;
                 }
                 yield return null;
@@ -48,28 +51,45 @@ namespace MagicShelf
                 yield break;
             }
 
-            // ---- 1) 找参照药水：货架上已有的瓶子 ----
+            // ---- 1) 找参照药水：货架上已有的瓶子（真实点击模式下要求货架在画面内）----
             LedgeController targetLedge = null;
             PotionItem reference = null;
             foreach (var ledge in CollectLedges())
             {
-                var item = FindPotionOn(ledge);
-                if (item != null)
+                if (!ledge.IsInitialized())
                 {
-                    targetLedge = ledge;
-                    reference = item;
-                    break;
+                    continue;
                 }
+
+                var item = FindPotionOn(ledge);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                if (realClick && !IsClickableOnScreen(ledge))
+                {
+                    continue;
+                }
+
+                targetLedge = ledge;
+                reference = item;
+                break;
             }
 
             // ---- 2) 货架上空着就先自己放一瓶 ----
             if (reference == null)
             {
-                log.LogInfo("[自检] 货架上没有现成的药水，先从背包放一瓶作为参照……");
-                yield return PlaceSeedPotion(placed => { targetLedge = placed.Key; reference = placed.Value; });
+                log.LogInfo("[自检] 货架上没有可用的现成参照药水，先从背包放一瓶……");
+                yield return PlaceSeedPotion(realClick, placed =>
+                {
+                    targetLedge = placed.Key;
+                    reference = placed.Value;
+                });
+
                 if (reference == null || targetLedge == null)
                 {
-                    log.LogWarning("[自检] 无法在货架上放上参照药水（可能需要背包里有 ≥2 瓶同种药水，或当前房间里没有货架），跳过自检。");
+                    log.LogWarning("[自检] 无法准备参照瓶（可能背包里没有 ≥2 瓶同种药水，或画面内/房间里没有可用货架），跳过自检。");
                     yield break;
                 }
             }
@@ -93,42 +113,85 @@ namespace MagicShelf
             int before = key != null ? inventory.GetItemCount(key) : 0;
             int itemsBefore = CountPotionsOnShelf(shelf);
 
-            log.LogInfo($"[自检] 货架「{shelf.name}」参照药水【{potion.name}】：" +
-                        $"背包 {before} 瓶、架上 {itemsBefore} 瓶");
-
+            log.LogInfo($"[自检] 货架「{shelf.name}」参照药水【{potion.name}】：背包 {before} 瓶、架上 {itemsBefore} 瓶");
             if (before <= 0)
             {
                 log.LogWarning("[自检] 背包里没有与参照瓶同种的药水，无法验证搬运，跳过。");
                 yield break;
             }
 
-            // ---- 3) 调用与“玩家点击”完全相同的入口 ----
-            log.LogInfo("[自检] 调用 OnPrimaryCursorClick()（等价于玩家点击该货架）……");
             float startedAt = Time.realtimeSinceStartup;
-            shelf.OnPrimaryCursorClick();
 
-            // ---- 4) 等待搬运结束：背包清空或数量不再变化 ----
-            int last = before;
-            float stableFor = 0f;
-            while (Time.realtimeSinceStartup - startedAt < 90f)
+            if (realClick)
             {
-                yield return new WaitForSeconds(0.5f);
-                int now = inventory.GetItemCount(key);
-                if (now == 0) { last = 0; break; }
-                if (now == last) { stableFor += 0.5f; if (stableFor >= 5f) break; }
-                else { stableFor = 0f; last = now; }
+                // ---- 3a) 真实点击模式：把屏幕坐标打给外部工具，然后等背包数量下降 ----
+                Vector3 world = GetClickWorldPoint(shelf, targetLedge);
+                var cam = Managers.Game.Cam;
+                if (cam == null)
+                {
+                    log.LogWarning("[自检] 拿不到主相机，跳过。");
+                    yield break;
+                }
+
+                Vector3 screenPoint = cam.WorldToScreenPoint(world);
+                int clickX = Mathf.RoundToInt(screenPoint.x);
+                int clickY = Mathf.RoundToInt(Screen.height - screenPoint.y);   // 转成左上角原点的屏幕坐标
+
+                log.LogInfo($"[自检] CLICKPOINT {clickX} {clickY} GAMESCREEN {Screen.width} {Screen.height}");
+                log.LogInfo("[自检] 等待真实鼠标点击……");
+
+                while (Time.realtimeSinceStartup - startedAt < 90f)
+                {
+                    yield return new WaitForSeconds(0.5f);
+                    if (inventory.GetItemCount(key) < before)
+                    {
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // ---- 3b) 直接调用入口：等价于点击，只是不经过鼠标派发 ----
+                log.LogInfo("[自检] 调用 OnPrimaryCursorClick()（等价于玩家点击该货架）……");
+                shelf.OnPrimaryCursorClick();
+
+                int last = before;
+                float stableFor = 0f;
+                while (Time.realtimeSinceStartup - startedAt < 90f)
+                {
+                    yield return new WaitForSeconds(0.5f);
+                    int now = inventory.GetItemCount(key);
+                    if (now == 0)
+                    {
+                        last = 0;
+                        break;
+                    }
+                    if (now == last)
+                    {
+                        stableFor += 0.5f;
+                        if (stableFor >= 5f)
+                        {
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        stableFor = 0f;
+                        last = now;
+                    }
+                }
             }
 
+            // ---- 4) 报告 ----
             int after = inventory.GetItemCount(key);
             int itemsAfter = CountPotionsOnShelf(shelf);
             float seconds = Time.realtimeSinceStartup - startedAt;
-
-            // ---- 5) 报告 ----
             bool pass = after < before && itemsAfter > itemsBefore;
+
             log.LogInfo($"[自检] 结果：背包 {before} → {after} 瓶，架上 {itemsBefore} → {itemsAfter} 瓶，耗时 {seconds:F1} 秒");
             if (pass)
             {
-                log.LogInfo($"[自检] ✅ PASS —— 点击货架成功搬运 {before - after} 瓶同种药水到货架上");
+                log.LogInfo($"[自检] ✅ PASS —— {(realClick ? "真实鼠标点击" : "调用点击入口")}成功搬运 {before - after} 瓶同种药水到货架上");
             }
             else
             {
@@ -209,22 +272,64 @@ namespace MagicShelf
             return count;
         }
 
+        /// <summary>这个格子的点击位置是否在当前画面内（留出边距，避免点到 UI 上）。</summary>
+        private static bool IsClickableOnScreen(LedgeController ledge)
+        {
+            var cam = Managers.Game != null ? Managers.Game.Cam : null;
+            if (cam == null)
+            {
+                return false;
+            }
+
+            Vector3 world = GetClickWorldPoint(ledge.buildableItem, ledge);
+            Vector3 sp = cam.WorldToScreenPoint(world);
+            if (sp.z <= 0f)
+            {
+                return false;
+            }
+
+            const float margin = 150f;   // 避开屏幕边缘与右侧面板
+            return sp.x > margin && sp.x < Screen.width - margin
+                   && sp.y > margin && sp.y < Screen.height - margin;
+        }
+
+        /// <summary>
+        /// 点击点：优先用货架主体的碰撞体，并在水平方向取靠边的位置——
+        /// 目的是避开刚放上去的参照瓶（否则点到的会是瓶子，而不是货架）。
+        /// </summary>
+        private static Vector3 GetClickWorldPoint(BuildableItemFromInventory shelf, LedgeController ledge)
+        {
+            Bounds bounds;
+            if (shelf != null && shelf.mainCollider != null)
+            {
+                bounds = shelf.mainCollider.bounds;
+            }
+            else
+            {
+                bounds = ledge.GetLedgePhysicsColliderBounds();
+            }
+
+            float x = Mathf.Lerp(bounds.min.x, bounds.max.x, 0.8f);
+            return new Vector3(x, bounds.center.y, 0f);
+        }
+
         /// <summary>从背包拿一瓶药放到某个空闲格子上，作为自检的参照瓶。</summary>
-        private static IEnumerator PlaceSeedPotion(System.Action<KeyValuePair<LedgeController, PotionItem>> onDone)
+        private static IEnumerator PlaceSeedPotion(bool requireOnScreen, System.Action<KeyValuePair<LedgeController, PotionItem>> onDone)
         {
             var log = MagicShelfPlugin.Log;
             var inventory = Managers.Player.Inventory;
             var ledges = CollectLedges();
             if (ledges.Count == 0)
             {
-                log.LogWarning("[自检] 当前房间里没有可用的货架格子。");
+                log.LogWarning("[自检] 当前没有可用的货架格子。");
                 onDone(default);
                 yield break;
             }
 
-            // 找一个已初始化、空着、且所属货架正常的格子
+            // 找一个已初始化、空着、所属货架正常的格子
             LedgeController freeLedge = null;
             int uninitialized = 0;
+            int offScreen = 0;
             foreach (var ledge in ledges)
             {
                 if (ledge.buildableItem == null || ledge.buildableItem.markedAsDestroyed)
@@ -236,16 +341,22 @@ namespace MagicShelf
                     uninitialized++;
                     continue;
                 }
-                if (FindPotionOn(ledge) == null)
+                if (FindPotionOn(ledge) != null)
                 {
-                    freeLedge = ledge;
-                    break;
+                    continue;
                 }
+                if (requireOnScreen && !IsClickableOnScreen(ledge))
+                {
+                    offScreen++;
+                    continue;
+                }
+                freeLedge = ledge;
+                break;
             }
 
             if (freeLedge == null)
             {
-                log.LogWarning($"[自检] 找不到可用的空格子（未初始化的格子 {uninitialized} 个，总格子 {ledges.Count} 个）。");
+                log.LogWarning($"[自检] 找不到可用的空格子（未初始化 {uninitialized} 个、画面外 {offScreen} 个、总格子 {ledges.Count} 个）。");
                 onDone(default);
                 yield break;
             }
@@ -273,7 +384,8 @@ namespace MagicShelf
             log.LogInfo($"[自检] 目标格子「{freeLedge.name}」碰撞体范围 " +
                         $"x[{ledgeBounds.min.x:F2},{ledgeBounds.max.x:F2}] y[{ledgeBounds.min.y:F2},{ledgeBounds.max.y:F2}]");
 
-            Vector2 position = ShelfRestocker.SpawnPositionFor(freeLedge);
+            // 参照瓶放在格子靠左的位置，点击点取靠右，避免互相干扰
+            Vector2 position = ShelfRestocker.SpawnPositionFor(freeLedge, 0.35f, 0.2f);
             PotionItem spawned;
             try
             {

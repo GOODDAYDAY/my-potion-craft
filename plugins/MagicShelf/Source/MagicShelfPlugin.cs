@@ -31,6 +31,7 @@ namespace MagicShelf
         internal static ConfigEntry<float> SpawnInterval;
         internal static ConfigEntry<bool> VerboseLog;
         internal static ConfigEntry<bool> SelfTestOnLoad;
+        internal static ConfigEntry<bool> SelfTestRealClick;
 
         private Harmony harmony;
 
@@ -63,6 +64,11 @@ namespace MagicShelf
                 "4. 自检（开发用）", "SelfTestOnLoad", false,
                 "打开后：载入存档时自动找一张真实货架，调用与玩家点击完全相同的入口跑一次搬运，"
                 + "并把「背包数量变化 + 架上瓶子数量变化」写成 PASS/FAIL 报告。验证完请改回 false");
+
+            SelfTestRealClick = Config.Bind(
+                "4. 自检（开发用）", "SelfTestRealClick", false,
+                "自检是否走「真实鼠标点击」：true 时插件只算出货架的屏幕坐标并打印 CLICKPOINT，"
+                + "由外部工具移动光标真点一下（用于验证点击派发这一环）。false = 直接调用点击入口");
 
             var host = new GameObject("MagicShelf.CoroutineHost");
             Object.DontDestroyOnLoad(host);

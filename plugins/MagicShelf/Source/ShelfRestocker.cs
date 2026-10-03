@@ -246,13 +246,22 @@ namespace MagicShelf
         /// 这是游戏自己的吸附判定条件（见 IgnoreCollisionLedgeTopCollider.CanInteractWithCollider）。
         /// 注意格子碰撞体带 offset，不能直接用 ledge.transform.position。
         /// </summary>
-        internal static Vector2 SpawnPositionFor(LedgeController ledge, float heightAbove = 0.35f)
+        internal static Vector2 SpawnPositionFor(LedgeController ledge, float heightAbove = 0.35f, float xFraction = -1f)
         {
             Bounds bounds = ledge.GetLedgePhysicsColliderBounds();
-            float halfWidth = Mathf.Max(bounds.extents.x * 0.6f, 0.05f);
-            return new Vector2(
-                bounds.center.x + UnityEngine.Random.Range(-halfWidth, halfWidth),
-                bounds.max.y + heightAbove);
+
+            float x;
+            if (xFraction < 0f)
+            {
+                float halfWidth = Mathf.Max(bounds.extents.x * 0.6f, 0.05f);
+                x = bounds.center.x + UnityEngine.Random.Range(-halfWidth, halfWidth);
+            }
+            else
+            {
+                x = Mathf.Lerp(bounds.min.x, bounds.max.x, xFraction);
+            }
+
+            return new Vector2(x, bounds.max.y + heightAbove);
         }
 
         private static IEnumerator Restock(List<Job> jobs)
