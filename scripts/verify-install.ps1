@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     只读校验 Potion Craft 的 BepInEx + mod 安装状态。
 
@@ -30,6 +30,8 @@ $expectedPlugins = [ordered]@{
     'PotionCraft_SortBookmark.dll'    = '16D36EDEFB5021EC8E4B98C3DAC48235AE9AC9B6F3C32591CAEC7132DFC18500'
     'PotionCraft_MoreInformation.dll' = '9A3FC4FB2B3124BDAD8C187502DC6697E2622DF0DDEC91C50F41CCD0BFEBBFBE'
     'PotionCraftAutoGarden.dll'       = '31A3FA3167A447DF478DBB3875A5D39E84B7872A4D51A18DEB60DF8BB7CC9ECB'
+    'Ukersn''s TweakWizard.dll'       = 'EA961E2F70AF6010382B932DC1EEE148661AAF67259D53CC6675B437CEB4FBED'
+    'MagicShelf.dll'                  = '963E213FD8D0B09DBF1FA22862520EC7FEA87DCCA821A134FEF648409A20E302'
 }
 
 $expectedFramework = @(
@@ -42,8 +44,10 @@ $expectedFramework = @(
 
 $expectedConfigs = @(
     'BepInEx\config\com.ukersn.plugin.AutoGarden.cfg'
+    'BepInEx\config\com.ukersn.plugin.TweakWizard.cfg'
     'BepInEx\config\me.xiaoye97.plugin.PotionCraft.MoreInformation.cfg'
     'BepInEx\config\me.xiaoye97.plugin.PotionCraft.SortBookmark.cfg'
+    'BepInEx\config\gooddayday.potioncraft.magicshelf.cfg'
 )
 
 # ---- 自动定位游戏目录 -------------------------------------------------------

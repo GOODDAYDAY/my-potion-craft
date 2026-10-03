@@ -20,7 +20,7 @@
 
 游戏本体文件零改动——所有 mod 都通过 BepInEx 从外部注入，卸载时删干净即可。
 
-## 已启用的 mod（4 个）
+## 已启用的 mod（5 个）
 
 | Nexus | Mod | 版本 | 作用 | 对应我的需求 |
 | --- | --- | --- | --- | --- |
@@ -28,6 +28,9 @@
 | [#30](https://www.nexusmods.com/potioncraftalchemistsimulator/mods/30) | Sort Bookmark | 2.0.3 | 配方书书签一键整理（配方书界面按 `空格`） | ② 整理配方书书签 |
 | [#31](https://www.nexusmods.com/potioncraftalchemistsimulator/mods/31) | MoreInformation | 2.0.2 | 物品价值 / 药水成本 / NPC 需求属性 / 研磨进度等提示 | 附加 |
 | [#39](https://www.nexusmods.com/potioncraftalchemistsimulator/mods/39) | PotionCraftAutoGarden | 1.1.5 | 每日自动收获 + 浇水、水晶收获、一键施肥 | ③ 自动浇水、自动收获 |
+| —（GitHub，非 Nexus） | [Ukersn's Tweak Wizard](https://github.com/ukersn/Potion-Craft-Ukersn-s-TweakWizard) | 1.3.2 | **花园无限种植**（另含一键研磨、快速选药、药水边缘吸附） | 附加 |
+
+另有一个本仓库自研的插件 **MagicShelf**（魔法架子原型），见下方专门章节。
 
 每个 mod 的功能细节、按键与配置项见 [docs/mods.md](docs/mods.md)。
 

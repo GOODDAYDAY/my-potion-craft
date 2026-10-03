@@ -121,6 +121,32 @@
 
 ---
 
+## 附加（非最初 Nexus 列表）—— Ukersn's Tweak Wizard
+
+| 项 | 值 |
+| --- | --- |
+| 来源 | [ukersn/Potion-Craft-Ukersn-s-TweakWizard](https://github.com/ukersn/Potion-Craft-Ukersn-s-TweakWizard)（MIT，只发布在作者 GitHub；Nexus / Thunderstore 上没有） |
+| 版本 | **1.3.2**（2025-07-02 发布，晚于 2.0.2 补丁；README 声明兼容 v2.0.2） |
+| 已装 | `BepInEx\plugins\Ukersn's TweakWizard.dll` |
+| 配置 | `BepInEx\config\com.ukersn.plugin.TweakWizard.cfg` |
+| 与已装 mod 的关系 | 与 AutoGarden **同一个作者**（ukersn），启动实测无冲突 |
+
+功能与**实际默认值**（读自本机生成的配置文件，不是抄 README）：
+
+| 功能 | 配置键 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| **花园无限种植** | `EnableUnrestrictedPlanting` | **true** | 植物与水晶不再受种植位限制 |
+| 一键研磨 | `EnableOneClickGrinding` | **true** | 实验室里右键背包材料 → 直接磨到全碎（水晶除外）；`Shift`+右键 → 直接扔进锅里 |
+| 快速选药 | `EnableQuickPotionSelection` | **true** | 顾客/商人界面多一个按钮，自动从背包挑合适的药水放上天平 |
+| 只选单效果药水 | `EnableSingleEffectPotionSelection` | false | 上一条的附加筛选 |
+| 药水边缘吸附 | `EnablePotionEdgeSnapping` | false | 按住 `PotionEdgeSnappingKey`（默认 `Q`）时药水自动吸附漩涡边缘 |
+
+> ⚠️ **作者自己的警告**（README 原文）：这个插件允许进行异常的游戏操作，**可能导致存档损坏或游戏崩溃，使用前请备份存档**。
+> 本仓库的处理方式：装前备份 `SavesSteam\` 并逐文件比对哈希；验证时只启动到主菜单，不载入存档。
+> 如果只想保留「无限种植」，把另外三个开关改成 `false` 即可（本仓库未擅自改动作者默认值）。
+
+---
+
 ## 相关但未安装的 mod（未实测，仅供将来参考）
 
 | Mod | 作者 | 相关性 |

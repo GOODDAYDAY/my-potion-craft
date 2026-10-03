@@ -15,7 +15,7 @@
 来源：<https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.5/BepInEx_win_x64_5.4.23.5.zip>
 （发布于 2026-02-08；内含 Doorstop 4.5.0）
 
-## 二、正在使用：4 个 mod
+## 二、正在使用：5 个 mod
 
 | Nexus | 本地文件名 | 版本 | 上游资产名 | 大小 (B) | SHA256 |
 | --- | --- | --- | --- | --- | --- |
@@ -23,6 +23,7 @@
 | #30 | `PotionCraft_SortBookmark_2.0.3.zip` | 2.0.3 | `PotionCraft_SortBookmark.zip` | 5831 | `D31F804C4B7AEE564436B88E737B86502B99258EC9BA9290D1F53E3FB9DFE404` |
 | #31 | `PotionCraft_MoreInformation_2.0.2.zip` | 2.0.2 | `PotionCraft_MoreInformation.zip` | 20545 | `DA6968B7EA02D9530865C80EEB05EFE2C5B9AD01FFFF040CFEDA061A063FE768` |
 | #39 | `PotionCraftAutoGarden_1.1.5.zip` | 1.1.5 | `PotionCraftAutoGarden.zip` | 11149 | `3848DDB645A78BF821D21794F4663D59E8BAF934C812B26B123EC1343FEFD640` |
+| —（非 Nexus） | `Ukersn_s_TweakWizard_1.3.2.zip` | 1.3.2 | `Ukersn.s.TweakWizard.zip` | 22018 | `008DFFB39E196584F8434DFA5EF69829D2A5B8BDDA2FC7047C00BABB182459F5` |
 
 来源：
 
@@ -30,8 +31,11 @@
 - #30 <https://github.com/xiaoye97/PotionCraft_SortBookmark/releases/download/2.0.3/PotionCraft_SortBookmark.zip>
 - #31 <https://github.com/xiaoye97/PotionCraft_MoreInformation/releases/download/2.0.2/PotionCraft_MoreInformation.zip>
 - #39 <https://github.com/ukersn/PotionCraftAutoGarden/releases/download/1.1.5/PotionCraftAutoGarden.zip>
+- TweakWizard <https://github.com/ukersn/Potion-Craft-Ukersn-s-TweakWizard/releases/download/1.3.2/Ukersn.s.TweakWizard.zip>
+  （2025-07-02 发布，README 声明兼容 v2.0.2；只从作者 GitHub 发布，Nexus / Thunderstore 上没有）
 
-> 这 4 个包内**只有一个 dll**，没有额外依赖文件。
+> 这些包内**都只有一个 dll**，没有额外依赖文件。
+> 本仓库自研的 `MagicShelf.dll` 不是下载来的，源码在 [../plugins/MagicShelf](../plugins/MagicShelf/)。
 
 ## 三、已退役（保留记录，便于回溯）
 
@@ -62,6 +66,8 @@
 | `BepInEx\plugins\PotionCraft_SortBookmark.dll` | 11776 | `16D36EDEFB5021EC8E4B98C3DAC48235AE9AC9B6F3C32591CAEC7132DFC18500` |
 | `BepInEx\plugins\PotionCraft_MoreInformation.dll` | 30720 | `9A3FC4FB2B3124BDAD8C187502DC6697E2622DF0DDEC91C50F41CCD0BFEBBFBE` |
 | `BepInEx\plugins\PotionCraftAutoGarden.dll` | 24576 | `31A3FA3167A447DF478DBB3875A5D39E84B7872A4D51A18DEB60DF8BB7CC9ECB` |
+| `BepInEx\plugins\Ukersn's TweakWizard.dll` | 49152 | `EA961E2F70AF6010382B932DC1EEE148661AAF67259D53CC6675B437CEB4FBED` |
+| `BepInEx\plugins\MagicShelf.dll`（自研） | 27136 | `963E213FD8D0B09DBF1FA22862520EC7FEA87DCCA821A134FEF648409A20E302` |
 | `winhttp.dll` | — | `8C6CDBC38836DEE87E3368F5DE1994D7C0CCEBF29E4CE7ABA3C0981F9375412C` |
 | `BepInEx\core\BepInEx.Preloader.dll` | — | `55D3895351A9D16B63B6F35F1C01B44AC650979E853D0BD3A442B92A082AF64F` |
 | `BepInEx\core\BepInEx.dll` | — | `8255B28902886085C578B9E427D3073C97002DB85176D2090CDEDA90EF14CE70` |
