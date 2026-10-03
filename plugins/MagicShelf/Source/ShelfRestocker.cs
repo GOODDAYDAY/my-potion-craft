@@ -7,6 +7,7 @@ using PotionCraft.InventorySystem;
 using PotionCraft.ManagersSystem;
 using PotionCraft.ObjectBased;
 using PotionCraft.ObjectBased.Potion;
+using PotionCraft.ObjectBased.UIElements.Dialogue;
 using PotionCraft.ScriptableObjects;
 using UnityEngine;
 using PotionDef = PotionCraft.ScriptableObjects.Potion.Potion;
@@ -32,6 +33,9 @@ namespace MagicShelf
             public int Count;
         }
 
+        /// <summary>是否有一次搬运正在进行（防止连点触发两次并发搬运）。</summary>
+        private static bool isRestocking;
+
         /// <summary>尝试接管这次点击。返回 true 表示已处理（调用方应跳过游戏原逻辑）。</summary>
         internal static bool TryRestock(BuildableItemFromInventory shelf)
         {
@@ -43,6 +47,25 @@ namespace MagicShelf
             if (Managers.BuildMode == null || Managers.BuildMode.IsBuildModeEnabled)
             {
                 return false;   // 建造模式不归我们管
+            }
+
+            if (isRestocking)
+            {
+                return false;   // 上一次搬运还没结束
+            }
+
+            // 交易/砍价过程中背包语义不同（药水会被算成卖给商人），此时不要动背包
+            if (Managers.Dialogue != null)
+            {
+                var dialogueState = Managers.Dialogue.State;
+                if (dialogueState == DialogueState.Trading || dialogueState == DialogueState.Haggle)
+                {
+                    if (MagicShelfPlugin.VerboseLog.Value)
+                    {
+                        MagicShelfPlugin.Log.LogInfo($"正在与 NPC 交易/砍价（{dialogueState}），跳过本次点击");
+                    }
+                    return false;
+                }
             }
 
             if (Managers.Cursor != null && Managers.Cursor.IsGrabbingItem)
@@ -265,6 +288,19 @@ namespace MagicShelf
         }
 
         private static IEnumerator Restock(List<Job> jobs)
+        {
+            isRestocking = true;
+            try
+            {
+                yield return RestockInner(jobs);
+            }
+            finally
+            {
+                isRestocking = false;
+            }
+        }
+
+        private static IEnumerator RestockInner(List<Job> jobs)
         {
             var inventory = Managers.Player.Inventory;
             int maxPerClick = MagicShelfPlugin.MaxPerClick.Value;

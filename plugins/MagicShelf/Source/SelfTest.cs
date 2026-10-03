@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using PotionCraft.ManagersSystem;
+using PotionCraft.ManagersSystem.Room;
 using PotionCraft.ObjectBased;
 using PotionCraft.ObjectBased.Potion;
+using PotionCraft.Settings;
 using UnityEngine;
 using PotionDef = PotionCraft.ScriptableObjects.Potion.Potion;
 
@@ -52,6 +54,12 @@ namespace MagicShelf
             }
 
             // ---- 1) 找参照药水：货架上已有的瓶子（真实点击模式下要求货架在画面内）----
+            if (realClick)
+            {
+                // 画面里没有货架就先切房间（走游戏自己的 GoTo，与玩家切房间同一条路径）
+                yield return EnsureOnScreenLedge();
+            }
+
             LedgeController targetLedge = null;
             PotionItem reference = null;
             foreach (var ledge in CollectLedges())
@@ -231,6 +239,102 @@ namespace MagicShelf
             return Ledges;
         }
 
+        /// <summary>画面内是否存在已初始化的货架格子。</summary>
+        private static bool HasOnScreenLedge()
+        {
+            foreach (var ledge in CollectLedges())
+            {
+                if (ledge.IsInitialized() && IsClickableOnScreen(ledge))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 真实点击模式专用：当前画面里没有货架时，挨个切到未锁定的房间去找。
+        /// 用的是游戏自己的 <c>Managers.Room.GoTo(...)</c>——它同时也是开发者命令 `GoToRoom` 的实现，
+        /// 所以是"正规操作"，不会搞乱场景状态。
+        /// </summary>
+        private static IEnumerator EnsureOnScreenLedge()
+        {
+            if (HasOnScreenLedge())
+            {
+                yield break;
+            }
+
+            var log = MagicShelfPlugin.Log;
+            var rooms = Settings<RoomManagerSettings>.Asset.rooms;
+            if (rooms == null)
+            {
+                yield break;
+            }
+
+            for (int i = 0; i < rooms.Length; i++)
+            {
+                var room = rooms[i];
+                if (room == null || room.IsLocked || !room.IsLoaded)
+                {
+                    continue;
+                }
+
+                var index = room.GetRoomIndex();
+                if (index == Managers.Room.CurrentRoomIndex)
+                {
+                    continue;
+                }
+
+                log.LogInfo($"[自检] 当前画面内没有货架，尝试切到房间「{room.name}」……");
+                Managers.Room.GoTo(index);
+
+                float waited = 0f;
+                while (Managers.Room.CameraMover.IsMoving() && waited < 15f)
+                {
+                    waited += Time.deltaTime;
+                    yield return null;
+                }
+                yield return new WaitForSeconds(1.5f);
+
+                if (HasOnScreenLedge())
+                {
+                    log.LogInfo($"[自检] 在房间「{room.name}」找到了画面内的货架");
+                    yield break;
+                }
+            }
+
+            log.LogWarning("[自检] 所有已解锁房间里都没找到画面内的货架。");
+            DumpLedgeDiagnostics();
+        }
+
+        /// <summary>画面内找不到货架时，把前几个格子的坐标打出来，便于判断是"真的在画面外"还是判据有问题。</summary>
+        private static void DumpLedgeDiagnostics()
+        {
+            var log = MagicShelfPlugin.Log;
+            var cam = Managers.Game != null ? Managers.Game.Cam : null;
+            if (cam == null)
+            {
+                return;
+            }
+
+            int shown = 0;
+            foreach (var ledge in CollectLedges())
+            {
+                if (shown >= 4)
+                {
+                    break;
+                }
+
+                var bounds = ledge.GetLedgePhysicsColliderBounds();
+                Vector3 world = GetClickWorldPoint(ledge.buildableItem, ledge);
+                Vector3 sp = cam.WorldToScreenPoint(world);
+                log.LogInfo($"[自检] 诊断：格子「{ledge.name}」初始化={ledge.IsInitialized()} " +
+                            $"世界坐标({world.x:F2},{world.y:F2}) → 屏幕({sp.x:F0},{sp.y:F0},z={sp.z:F2}) " +
+                            $"画布 {Screen.width}x{Screen.height}，格子范围 x[{bounds.min.x:F2},{bounds.max.x:F2}]");
+                shown++;
+            }
+        }
+
         private static PotionItem FindPotionOn(LedgeController ledge)
         {
             var container = Managers.Game.ItemContainer;
@@ -294,21 +398,12 @@ namespace MagicShelf
         }
 
         /// <summary>
-        /// 点击点：优先用货架主体的碰撞体，并在水平方向取靠边的位置——
-        /// 目的是避开刚放上去的参照瓶（否则点到的会是瓶子，而不是货架）。
+        /// 点击点：用**格子**的碰撞体来算（货架主碰撞体对桌子之类的物体可能很大或偏移，
+        /// 用它算出来的点会跑到屏幕外）。取靠右的位置，避开刚放上去的参照瓶。
         /// </summary>
         private static Vector3 GetClickWorldPoint(BuildableItemFromInventory shelf, LedgeController ledge)
         {
-            Bounds bounds;
-            if (shelf != null && shelf.mainCollider != null)
-            {
-                bounds = shelf.mainCollider.bounds;
-            }
-            else
-            {
-                bounds = ledge.GetLedgePhysicsColliderBounds();
-            }
-
+            Bounds bounds = ledge.GetLedgePhysicsColliderBounds();
             float x = Mathf.Lerp(bounds.min.x, bounds.max.x, 0.8f);
             return new Vector3(x, bounds.center.y, 0f);
         }

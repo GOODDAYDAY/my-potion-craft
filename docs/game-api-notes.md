@@ -214,7 +214,20 @@ npc.trading.deliveriesCategories.ForEach(category =>
 Crucible（`RoboPhred/potioncraft-crucible`）提供：给 NPC 商人加商品、共享存档数据、共享精灵图集、
 自定义材料/瓶子/效果/顾客/商人。**不提供自定义可摆放物品**——那部分要自己写（见 8.1）。
 
-## 九、踩过的版本坑（2.0.2）
+## 九、镜头与房间（自动化测试会撞上的墙）
+
+| 事实 | 说明 |
+| --- | --- |
+| 房间切换 | `Managers.Room.GoTo(roomIndex)` 是游戏自己的切房间入口（同时是开发者命令 `GoToRoom` 的实现），可以安全调用 |
+| 房间筛选 | `Room.IsLocked` / `Room.IsLoaded` / `Room.IsVisible` / `Room.GetRoomIndex()` |
+| 镜头位置 | `CameraMover.Position` 可读写，但它同时驱动房间可见性判定（`UpdateCollisions` 拿它与各房间锚点比距离），**直接改会把房间可见状态搞乱**，不要用它当"平移镜头" |
+| 实际限制 | 一张地图上房间是并排的巨块，货架可能停在离任何房间锚点都很远的位置。本机实测：货架在世界坐标 x≈-32，而切遍所有已解锁房间后镜头都停在 35 个单位之外，屏幕上根本看不到 |
+
+结论：**想自动化"真实鼠标点击某个游戏内物体"，绕不开镜头位置问题**；
+本项目的做法是——功能验证走"直接调用点击入口"（与玩家点击同一个方法），
+真实点击那一步留给人工，或者在玩家已经把镜头移到货架前时再开自检。
+
+## 十、踩过的版本坑（2.0.2）
 
 - `Bookmark.MovingState`（嵌套类型）→ 已改名为顶层 `BookmarkMovingState`；
   引用旧名的 mod 启动即抛 `TypeLoadException`（案例：Brew From Here）。
