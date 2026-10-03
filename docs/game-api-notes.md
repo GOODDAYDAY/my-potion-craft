@@ -195,13 +195,37 @@ npc.trading.deliveriesCategories.ForEach(category =>
     }));
 ```
 
-| 要点 | 说明 |
+`Delivery` / `Category` 是普通的 `[Serializable]` 类，字段全部 public，**可以在运行时构造**
+（命名空间 `PotionCraft.ObjectBased.Deliveries`）：
+
+| `Delivery` 字段 | 含义 |
+| --- | --- |
+| `item` | 卖的东西（`InventoryItem`——**家具也是 `InventoryItem` 的子类**） |
+| `appearingChance` | 出现概率 0~1 |
+| `minCount` / `maxCount` | 数量范围 |
+| `applyDiscounts` / `applyExtraCharge` | 是否参与折扣/加价 |
+| `name` | 可选备注 |
+
+**游戏自己就有一段运行时铺货的代码**（给某个特殊商人）：
+
+```csharp
+npc.trading.deliveriesCategories = new List<Category> { new Category() };
+// ……然后
+BuildableInventoryItem.ForEach((type, item) => AddItemToDeliveries(item));   // ← 家具也在卖
+void AddItemToDeliveries(InventoryItem item) =>
+    deliveriesCategories[0].deliveries.Add(new Delivery {
+        item = item, appearingChance = 1f, minCount = 5000, maxCount = 5000 });
+```
+
+这段代码同时证明了两件事：**商人可以卖任何 `InventoryItem`（含家具）**，
+且**运行时往 `deliveriesCategories` 里塞条目是游戏自己的合法用法**。
+
+| 其他要点 | 说明 |
 | --- | --- |
 | 商人库存类型 | 就是同一个 `Inventory` 类：`Managers.Trade.Inventory`（`items` 同样是"物品→数量"字典） |
 | 存读档 | `Managers.Trade.Inventory.GetSerializedInventory()` / `LoadFromSerializedInventory(...)` |
-| 条目结构 | `Delivery { item, minCount, maxCount, appearingChance, applyDiscounts, applyExtraCharge }` |
-| **游戏自带的"独特商品"机制** | `TradableUpgrade { uniqueUpgrade }`：只出现一次，且用 `CanUpgradeBeApplied()` 判断是否还该出现——这正是"卖一个魔法架子"该复用的模式 |
-| 备选方案 | Crucible 框架宣称支持 "Adding inventory items to NPC traders"，可省掉自己 hook 补货逻辑 |
+| **游戏自带的"独特商品"机制** | `TradableUpgrade { uniqueUpgrade }`：只出现一次，用 `CanUpgradeBeApplied()` 判断是否还该出现——"卖一个魔法架子"可以复用这个模式 |
+| 备选方案 | Crucible 框架宣称支持 "Adding inventory items to NPC traders" |
 
 ### 8.3 颜色区分（"魔法架子得有点区分度"）
 

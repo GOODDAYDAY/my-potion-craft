@@ -68,6 +68,7 @@
 │   ├── compatibility.md        # 兼容性矩阵、淘汰记录、报错原文与根因
 │   ├── troubleshooting.md      # 出事怎么查：日志位置、症状对照表、二分法
 │   ├── roadmap.md              # 决策原则、已知缺口、自研插件的来龙去脉
+│   ├── stage2-design.md        # 阶段 2（独立魔法架子）的设计、里程碑与风险
 │   └── game-api-notes.md       # 游戏内部 API 调查笔记（自研插件的地基）
 ├── mods/
 │   └── manifest.md             # 下载清单：来源 URL + 版本 + 大小 + SHA256
