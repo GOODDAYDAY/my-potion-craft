@@ -1,13 +1,21 @@
-<#
+﻿<#
 .SYNOPSIS
     只读校验 Potion Craft 的 BepInEx + mod 安装状态。
 
 .DESCRIPTION
-    逐项检查框架文件与 4 个插件 dll 是否存在、SHA256 是否与 mods/manifest.md 记录一致，
+    逐项检查框架文件与插件 dll 是否存在、SHA256 是否与 mods/manifest.md 记录一致，
     并列出不在清单里的额外 dll。
 
     本脚本只读取文件，不会修改、删除、下载任何内容。
     兼容 Windows PowerShell 5.1 与 PowerShell 7+。
+
+.NOTES
+    ⚠️ 本文件必须保存为 **UTF-8 with BOM**。
+    脚本里有中文输出，而 Windows PowerShell 5.1 对**没有 BOM** 的 .ps1 会按系统 ANSI
+    代码页（中文系统是 GBK）解析，直接报"语句块缺少右 }"之类的语法错。
+    用编辑器改完请在保存时选择"UTF-8 带 BOM"，或执行：
+        $t = [IO.File]::ReadAllText($p, (New-Object Text.UTF8Encoding($false)))
+        [IO.File]::WriteAllText($p, $t, (New-Object Text.UTF8Encoding($true)))
 
 .PARAMETER GamePath
     游戏根目录（含 Potion Craft.exe 的那一层）。省略时尝试自动定位 Steam 安装位置。
