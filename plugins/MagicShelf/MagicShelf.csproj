@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 本机路径不进仓库：从 local.props 读取（已 gitignore），或用 dotnet build -p:GameDir="..." 覆盖 -->
+  <Import Project="local.props" Condition="Exists('local.props')" />
+
+  <PropertyGroup>
+    <!-- 游戏程序集（PotionCraft.Scripts / UnityEngine）是按 netstandard2.1 编译的：
+         Unity 2023.1 的 Mono 支持 2.1，用 2.0 会报 CS1705 -->
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>MagicShelf</AssemblyName>
+    <RootNamespace>MagicShelf</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Version>0.1.0</Version>
+    <DebugType>none</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS0436;MSB3277;CS1701</NoWarn>
+  </PropertyGroup>
+
+  <Target Name="EnsureGameDir" BeforeTargets="BeforeBuild">
+    <Error Condition="'$(GameDir)' == ''"
+           Text="未设置 GameDir。请把 local.props.example 复制为 local.props 并填写游戏根目录，或执行 dotnet build -p:GameDir=&quot;X:\path\to\Potion Craft&quot;" />
+    <Error Condition="!Exists('$(GameDir)\Potion Craft_Data\Managed\PotionCraft.Scripts.dll')"
+           Text="GameDir 指向的目录里找不到 Potion Craft_Data\Managed\PotionCraft.Scripts.dll：$(GameDir)" />
+  </Target>
+
+  <PropertyGroup>
+    <BepInExCore>$(GameDir)\BepInEx\core</BepInExCore>
+    <ManagedDir>$(GameDir)\Potion Craft_Data\Managed</ManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCore)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCore)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PotionCraft.Scripts">
+      <HintPath>$(ManagedDir)\PotionCraft.Scripts.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PotionCraft.Core">
+      <HintPath>$(ManagedDir)\PotionCraft.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PotionCraft.Settings">
+      <HintPath>$(ManagedDir)\PotionCraft.Settings.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PotionCraft.ManagerSystem">
+      <HintPath>$(ManagedDir)\PotionCraft.ManagerSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.Physics2DModule">
+      <HintPath>$(ManagedDir)\UnityEngine.Physics2DModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

@@ -39,6 +39,24 @@
    - 已开启：每天醒来自动收获植物 + 浇水 + 收水晶（快速模式）
    - **唯一缺口**：施肥没法「每天自动」，只能按 `F2` 手动触发（已把范围改成全部房间，一次施完）
 
+## 自研插件：MagicShelf（魔法架子 · 阶段 1 原型）
+
+需求是「**架子上放一瓶药 → 一键把背包里同种的药水都放到那一格**」。Nexus / Thunderstore / GitHub
+都没有现成实现（最接近的 `PotionCraftShelves` 是给房间加置物架，`General Utils` 是作弊合集），
+所以按「没有现成的才自己写」的原则动手，源码在 [plugins/MagicShelf](plugins/MagicShelf/)。
+
+| 项 | 值 |
+| --- | --- |
+| 当前阶段 | **阶段 1 原型**：挂在游戏现有货架上，非建造模式点击 → 把背包里同种的药水全部搬上去（每次点击搬一次） |
+| 技术栈 | BepInEx 5.4.x + Harmony，目标框架 `netstandard2.1` |
+| 已装文件 | `BepInEx\plugins\MagicShelf.dll` |
+| 运行时验证 | 已实测：`5 plugins to load` → `Loading [Magic Shelf 0.1.0]`，无异常 |
+| 尚未做 | 独立物品、颜色区分、商人出售、存档兼容（阶段 2，等阶段 1 手感确认） |
+
+「同种」直接用游戏自己的 `Potion.IsSame()` 判定——它比较效果数组、药水基底、**实际用掉的材料**、
+瓶子/贴纸/图标颜色、自定义名称与描述，已经是最严格的现成判定。相关逆向结论见
+[docs/game-api-notes.md](docs/game-api-notes.md)。
+
 ## 目录结构
 
 ```
@@ -49,9 +67,12 @@
 │   ├── mods.md                 # 每个 mod 的功能、按键、配置项
 │   ├── compatibility.md        # 兼容性矩阵、淘汰记录、报错原文与根因
 │   ├── troubleshooting.md      # 出事怎么查：日志位置、症状对照表、二分法
-│   └── roadmap.md              # 决策原则、已知缺口、将来自研插件的入口
+│   ├── roadmap.md              # 决策原则、已知缺口、自研插件的来龙去脉
+│   └── game-api-notes.md       # 游戏内部 API 调查笔记（自研插件的地基）
 ├── mods/
 │   └── manifest.md             # 下载清单：来源 URL + 版本 + 大小 + SHA256
+├── plugins/
+│   └── MagicShelf/             # 自研插件（阶段 1 原型）：点击货架补齐同种药水
 ├── scripts/
 │   └── verify-install.ps1      # 只读校验：比对已装插件与清单
 └── upstream/                   # 上游源码（git submodule，钉在对应 release tag）

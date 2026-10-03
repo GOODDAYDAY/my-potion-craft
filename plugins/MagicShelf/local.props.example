@@ -1,0 +1,6 @@
+<Project>
+  <!-- 复制本文件为 local.props 并改成你自己的游戏根目录。local.props 已被 .gitignore 排除。 -->
+  <PropertyGroup>
+    <GameDir>D:\Steam\steamapps\common\Potion Craft</GameDir>
+  </PropertyGroup>
+</Project>

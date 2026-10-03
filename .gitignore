@@ -3,6 +3,9 @@ local.md
 local/
 *.local.md
 
+# 插件工程的本机配置（写着本机游戏路径，不进仓库）
+local.props
+
 # Windows
 Thumbs.db
 desktop.ini
